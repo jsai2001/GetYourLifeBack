@@ -75,6 +75,10 @@ class MainActivity : ComponentActivity() {
         }
         
         permissionManager.requestAllPermissions()
+        
+        // Start default reminder service
+        val defaultReminderIntent = Intent(this, DefaultReminderService::class.java)
+        startService(defaultReminderIntent)
     }
     
     @Composable

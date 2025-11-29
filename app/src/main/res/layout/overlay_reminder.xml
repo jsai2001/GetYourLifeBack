@@ -4,7 +4,7 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:gravity="center"
-    android:background="#80000000"
+    android:background="#FF000000"
     android:padding="32dp">
 
     <!-- Quote Section - Largest -->

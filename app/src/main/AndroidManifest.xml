@@ -57,6 +57,7 @@
             android:stopWithTask="false" />
             
         <service android:name=".AutoLaunchService" />
+        <service android:name=".DefaultReminderService" />
         
         <receiver android:name=".BootReceiver"
             android:enabled="true"

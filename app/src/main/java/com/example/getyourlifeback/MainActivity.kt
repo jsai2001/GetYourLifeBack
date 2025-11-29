@@ -26,6 +26,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.geometry.Offset
 import com.example.getyourlifeback.ui.theme.GetYourLifeBackTheme
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class MainActivity : ComponentActivity() {
     private lateinit var permissionManager: PermissionManager
@@ -41,12 +45,13 @@ class MainActivity : ComponentActivity() {
         sessionManager = SessionManager(this)
         startupManager = StartupManager(this)
         
-        // Handle startup mode from auto-launch
+        // Handle startup scenarios
         val isAutoLaunched = intent.getBooleanExtra("auto_launched", false)
         val isStartupMode = intent.getBooleanExtra("startup_mode", false)
+        val isWatchdogRestart = intent.getBooleanExtra("watchdog_restart", false)
         
-        if (isAutoLaunched && isStartupMode) {
-            // App was auto-launched after boot - ensure session continuity
+        if ((isAutoLaunched && isStartupMode) || isWatchdogRestart) {
+            // App was auto-launched after boot or restarted by watchdog - ensure session continuity
             if (sessionManager.isSessionActive()) {
                 val config = sessionManager.getSessionConfig()
                 config?.let {
@@ -83,11 +88,19 @@ class MainActivity : ComponentActivity() {
         var cooldownTime by remember { mutableStateOf(60) } // seconds (1 minute)
         var isSpecificAppsMode by remember { mutableStateOf(false) }
         var selectedApps by remember { mutableStateOf(setOf<String>()) }
+        var validationError by remember { mutableStateOf("") }
+        var showOTPDialog by remember { mutableStateOf(false) }
+        var otpInput by remember { mutableStateOf("") }
+        var otpStatus by remember { mutableStateOf("") }
+        var isOTPSending by remember { mutableStateOf(false) }
+        var isOTPVerifying by remember { mutableStateOf(false) }
+        var otpSent by remember { mutableStateOf(false) }
+        val otpManager = remember { OTPManager(this@MainActivity) }
         
         LaunchedEffect(Unit) {
             usageStats = usageStatsManager.getDailyUsageStats()
             
-            // Check for active session and resume if needed
+            // Ensure session continuity - this handles any missed restarts
             if (sessionManager.isSessionActive()) {
                 val config = sessionManager.getSessionConfig()
                 config?.let {
@@ -181,6 +194,44 @@ class MainActivity : ComponentActivity() {
                 }
                 
                 Spacer(modifier = Modifier.height(16.dp))
+                
+                // Enhanced OTP Test Button
+                ElevatedButton(
+                    onClick = { 
+                        showOTPDialog = true
+                        otpInput = ""
+                        otpStatus = ""
+                        isOTPSending = false
+                        isOTPVerifying = false
+                        otpSent = false
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(56.dp),
+                    colors = ButtonDefaults.elevatedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onSecondaryContainer
+                    ),
+                    shape = RoundedCornerShape(16.dp),
+                    elevation = ButtonDefaults.elevatedButtonElevation(
+                        defaultElevation = 4.dp,
+                        pressedElevation = 8.dp
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Text(
+                        text = "📧 Test OTP Email System",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+                
+                Spacer(modifier = Modifier.height(12.dp))
                 
                 // Enhanced Action Button
                 if (!isOverlayActive) {
@@ -358,7 +409,7 @@ class MainActivity : ComponentActivity() {
                                     isSpecificAppsMode = true
                                     focusDuration = 15
                                     reminderInterval = 60
-                                    cooldownTime = 90
+                                    cooldownTime = 30
                                 }
                             )
                             Text("Specific Apps")
@@ -382,6 +433,7 @@ class MainActivity : ComponentActivity() {
                                                 } else {
                                                     selectedApps - app.packageName
                                                 }
+                                                validationError = validateConfiguration(focusDuration, reminderInterval, cooldownTime, isSpecificAppsMode, selectedApps)
                                             }
                                         )
                                         Text(
@@ -399,7 +451,10 @@ class MainActivity : ComponentActivity() {
                         Text("Focus Duration: $focusDuration minutes")
                         Slider(
                             value = focusDuration.toFloat(),
-                            onValueChange = { focusDuration = it.toInt() },
+                            onValueChange = { 
+                                focusDuration = it.toInt()
+                                validationError = validateConfiguration(focusDuration, reminderInterval, cooldownTime, isSpecificAppsMode, selectedApps)
+                            },
                             valueRange = 5f..120f,
                             steps = 22
                         )
@@ -407,7 +462,10 @@ class MainActivity : ComponentActivity() {
                         Text("Reminder Interval: ${reminderInterval/60}:${String.format("%02d", reminderInterval%60)} minutes")
                         Slider(
                             value = reminderInterval.toFloat(),
-                            onValueChange = { reminderInterval = it.toInt() },
+                            onValueChange = { 
+                                reminderInterval = it.toInt()
+                                validationError = validateConfiguration(focusDuration, reminderInterval, cooldownTime, isSpecificAppsMode, selectedApps)
+                            },
                             valueRange = 30f..300f,
                             steps = 26
                         )
@@ -415,37 +473,56 @@ class MainActivity : ComponentActivity() {
                         Text("Cooldown Time: ${cooldownTime/60}:${String.format("%02d", cooldownTime%60)} minutes")
                         Slider(
                             value = cooldownTime.toFloat(),
-                            onValueChange = { cooldownTime = it.toInt() },
+                            onValueChange = { 
+                                cooldownTime = it.toInt()
+                                validationError = validateConfiguration(focusDuration, reminderInterval, cooldownTime, isSpecificAppsMode, selectedApps)
+                            },
                             valueRange = 30f..180f,
                             steps = 14
                         )
+                        
+                        if (validationError.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "⚠️ $validationError",
+                                color = Color.Red,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 },
                 confirmButton = {
                     Button(
                         onClick = {
-                            // Start session with SessionManager
-                            sessionManager.startSession(
-                                focusDuration, reminderInterval, cooldownTime,
-                                isSpecificAppsMode, selectedApps
-                            )
-                            
-                            // Start persistent service
-                            val persistentIntent = Intent(this@MainActivity, PersistentService::class.java)
-                            persistentIntent.putExtra("focusDuration", focusDuration)
-                            persistentIntent.putExtra("reminderInterval", reminderInterval)
-                            persistentIntent.putExtra("cooldownTime", cooldownTime)
-                            persistentIntent.putExtra("isSpecificAppsMode", isSpecificAppsMode)
-                            persistentIntent.putStringArrayListExtra("selectedApps", ArrayList(selectedApps))
-                            startForegroundService(persistentIntent)
-                            
-                            // Start watchdog service
-                            val watchdogIntent = Intent(this@MainActivity, WatchdogService::class.java)
-                            startService(watchdogIntent)
-                            
-                            isOverlayActive = true
-                            showConfigDialog = false
-                        }
+                            val error = validateConfiguration(focusDuration, reminderInterval, cooldownTime, isSpecificAppsMode, selectedApps)
+                            if (error.isEmpty()) {
+                                // Start session with SessionManager
+                                sessionManager.startSession(
+                                    focusDuration, reminderInterval, cooldownTime,
+                                    isSpecificAppsMode, selectedApps
+                                )
+                                
+                                // Start persistent service
+                                val persistentIntent = Intent(this@MainActivity, PersistentService::class.java)
+                                persistentIntent.putExtra("focusDuration", focusDuration)
+                                persistentIntent.putExtra("reminderInterval", reminderInterval)
+                                persistentIntent.putExtra("cooldownTime", cooldownTime)
+                                persistentIntent.putExtra("isSpecificAppsMode", isSpecificAppsMode)
+                                persistentIntent.putStringArrayListExtra("selectedApps", ArrayList(selectedApps))
+                                startForegroundService(persistentIntent)
+                                
+                                // Start watchdog service
+                                val watchdogIntent = Intent(this@MainActivity, WatchdogService::class.java)
+                                startService(watchdogIntent)
+                                
+                                isOverlayActive = true
+                                showConfigDialog = false
+                            } else {
+                                validationError = error
+                            }
+                        },
+                        enabled = validateConfiguration(focusDuration, reminderInterval, cooldownTime, isSpecificAppsMode, selectedApps).isEmpty()
                     ) {
                         Text("Start")
                     }
@@ -455,6 +532,246 @@ class MainActivity : ComponentActivity() {
                         onClick = { showConfigDialog = false }
                     ) {
                         Text("Cancel")
+                    }
+                }
+            )
+        }
+        
+        // Enhanced OTP Dialog
+        if (showOTPDialog) {
+            AlertDialog(
+                onDismissRequest = { 
+                    if (!isOTPSending && !isOTPVerifying) {
+                        showOTPDialog = false
+                        otpInput = ""
+                        otpStatus = ""
+                        otpSent = false
+                    }
+                },
+                title = { 
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "📧 OTP Email Test",
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                },
+                text = {
+                    Column {
+                        // Email info card
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+                            ),
+                            shape = RoundedCornerShape(12.dp)
+                        ) {
+                            Column(
+                                modifier = Modifier.padding(16.dp)
+                            ) {
+                                Text(
+                                    text = "📮 Email Address",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Medium,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "jeevansaikanaparthi@gmail.com",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text(
+                                    text = "⏱️ OTP valid for 15 minutes",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        // OTP Input Field
+                        OutlinedTextField(
+                            value = otpInput,
+                            onValueChange = { 
+                                if (it.length <= 6 && it.all { char -> char.isDigit() }) {
+                                    otpInput = it
+                                    if (otpStatus.contains("❌") || otpStatus.contains("Please enter")) {
+                                        otpStatus = ""
+                                    }
+                                }
+                            },
+                            label = { Text("🔢 Enter 6-Digit OTP") },
+                            placeholder = { Text("000000") },
+                            singleLine = true,
+                            enabled = !isOTPSending && !isOTPVerifying,
+                            isError = otpStatus.contains("❌") || otpStatus.contains("Invalid"),
+                            keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                                keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword
+                            ),
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            trailingIcon = {
+                                if (otpInput.length == 6) {
+                                    Text(
+                                        text = "✓",
+                                        color = MaterialTheme.colorScheme.primary,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        )
+                        
+                        // Status Messages
+                        if (otpStatus.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(12.dp))
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = when {
+                                        otpStatus.contains("✅") -> Color(0xFF4CAF50).copy(alpha = 0.1f)
+                                        otpStatus.contains("❌") -> Color(0xFFF44336).copy(alpha = 0.1f)
+                                        otpStatus.contains("Sending") -> MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.3f)
+                                        else -> MaterialTheme.colorScheme.surfaceVariant
+                                    }
+                                ),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    if (isOTPSending || isOTPVerifying) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                    }
+                                    Text(
+                                        text = otpStatus,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        color = when {
+                                            otpStatus.contains("✅") -> Color(0xFF4CAF50)
+                                            otpStatus.contains("❌") -> Color(0xFFF44336)
+                                            else -> MaterialTheme.colorScheme.onSurface
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    Column {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Send OTP Button
+                            if (!otpSent || otpStatus.contains("❌")) {
+                                ElevatedButton(
+                                    onClick = {
+                                        isOTPSending = true
+                                        otpStatus = "📤 Sending OTP email..."
+                                        otpManager.generateAndSendOTP { success, message ->
+                                            isOTPSending = false
+                                            otpSent = success
+                                            otpStatus = if (success) {
+                                                "✅ $message"
+                                            } else {
+                                                "❌ $message"
+                                            }
+                                        }
+                                    },
+                                    enabled = !isOTPSending && !isOTPVerifying,
+                                    colors = ButtonDefaults.elevatedButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.secondaryContainer
+                                    ),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    if (isOTPSending) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp
+                                        )
+                                        Spacer(modifier = Modifier.width(8.dp))
+                                    }
+                                    Text(
+                                        text = if (isOTPSending) "Sending..." else "📤 Send OTP",
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+                            
+                            // Verify Button
+                            Button(
+                                onClick = {
+                                    when {
+                                        otpInput.length != 6 -> {
+                                            otpStatus = "❌ Please enter complete 6-digit OTP"
+                                        }
+                                        !otpSent && !otpStatus.contains("Demo mode") -> {
+                                            otpStatus = "❌ Please send OTP first"
+                                        }
+                                        else -> {
+                                            isOTPVerifying = true
+                                            otpStatus = "🔍 Verifying OTP..."
+                                            
+                                            // Simulate verification delay for better UX
+                                            CoroutineScope(Dispatchers.Main).launch {
+                                                delay(1000)
+                                                isOTPVerifying = false
+                                                
+                                                if (otpManager.validateOTP(otpInput)) {
+                                                    otpStatus = "✅ OTP Verified Successfully! Email system is working perfectly."
+                                                } else {
+                                                    otpStatus = "❌ Invalid or expired OTP. Please try again."
+                                                }
+                                            }
+                                        }
+                                    }
+                                },
+                                enabled = !isOTPSending && !isOTPVerifying && otpInput.length == 6,
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                if (isOTPVerifying) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(16.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimary
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                }
+                                Text(
+                                    text = if (isOTPVerifying) "Verifying..." else "🔍 Verify OTP",
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { 
+                            if (!isOTPSending && !isOTPVerifying) {
+                                showOTPDialog = false
+                                otpInput = ""
+                                otpStatus = ""
+                                otpSent = false
+                            }
+                        },
+                        enabled = !isOTPSending && !isOTPVerifying
+                    ) {
+                        Text(
+                            text = "❌ Close",
+                            fontWeight = FontWeight.Medium
+                        )
                     }
                 }
             )
@@ -470,6 +787,28 @@ class MainActivity : ComponentActivity() {
             intent.putExtra(android.app.admin.DevicePolicyManager.EXTRA_DEVICE_ADMIN, adminComponent)
             startActivity(intent)
         }
+    }
+    
+    private fun validateTimings(focusDuration: Int, reminderInterval: Int, cooldownTime: Int): String {
+        val focusSeconds = focusDuration * 60
+        return when {
+            focusSeconds <= reminderInterval -> "Focus Duration must be greater than Reminder Interval"
+            reminderInterval <= cooldownTime -> "Reminder Interval must be greater than Cooldown Time"
+            focusSeconds - reminderInterval < 30 -> "Focus Duration must be at least 30 seconds longer than Reminder Interval"
+            reminderInterval - cooldownTime < 30 -> "Reminder Interval must be at least 30 seconds longer than Cooldown Time"
+            else -> ""
+        }
+    }
+    
+    private fun validateConfiguration(focusDuration: Int, reminderInterval: Int, cooldownTime: Int, isSpecificAppsMode: Boolean, selectedApps: Set<String>): String {
+        val timingError = validateTimings(focusDuration, reminderInterval, cooldownTime)
+        if (timingError.isNotEmpty()) return timingError
+        
+        if (isSpecificAppsMode && selectedApps.isEmpty()) {
+            return "Please select at least one app for Specific Apps mode"
+        }
+        
+        return ""
     }
     
     private fun formatTime(milliseconds: Long): String {

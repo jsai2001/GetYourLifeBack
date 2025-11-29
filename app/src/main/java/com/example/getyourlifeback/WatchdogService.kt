@@ -22,7 +22,7 @@ class WatchdogService : Service() {
             override fun run() {
                 val sessionManager = SessionManager(this@WatchdogService)
                 if (sessionManager.isSessionActive()) {
-                    // Only restart if PersistentService is not running
+                    // Restart PersistentService if not running
                     if (!isServiceRunning(PersistentService::class.java)) {
                         val config = sessionManager.getSessionConfig()
                         config?.let {
@@ -35,6 +35,9 @@ class WatchdogService : Service() {
                             startForegroundService(serviceIntent)
                         }
                     }
+                    
+                    // MainActivity launch is now handled by BootReceiver
+                    // WatchdogService only monitors PersistentService
                 } else {
                     stopSelf()
                 }
@@ -50,6 +53,8 @@ class WatchdogService : Service() {
             serviceClass.name == it.service.className
         }
     }
+    
+
     
     override fun onBind(intent: Intent?): IBinder? = null
     

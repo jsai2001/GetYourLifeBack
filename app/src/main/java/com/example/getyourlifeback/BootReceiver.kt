@@ -8,14 +8,24 @@ class BootReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         when (intent.action) {
             Intent.ACTION_BOOT_COMPLETED,
+            Intent.ACTION_LOCKED_BOOT_COMPLETED,
             Intent.ACTION_MY_PACKAGE_REPLACED,
             Intent.ACTION_PACKAGE_REPLACED,
-            "android.intent.action.QUICKBOOT_POWERON" -> {
+            "android.intent.action.QUICKBOOT_POWERON",
+            "htc.intent.action.QUICKBOOT_POWERON",
+            "com.htc.intent.action.QUICKBOOT_POWERON" -> {
                 val sessionManager = SessionManager(context)
                 
                 // Always start watchdog service for monitoring
                 val watchdogIntent = Intent(context, WatchdogService::class.java)
                 context.startService(watchdogIntent)
+                
+                // Auto-launch app after restart for session continuity
+                val mainIntent = Intent(context, MainActivity::class.java)
+                mainIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+                mainIntent.putExtra("auto_launched", true)
+                mainIntent.putExtra("startup_mode", true)
+                context.startActivity(mainIntent)
                 
                 if (sessionManager.isSessionActive()) {
                     // Resume active session after boot/update
@@ -28,10 +38,6 @@ class BootReceiver : BroadcastReceiver() {
                         serviceIntent.putExtra("isSpecificAppsMode", it.isSpecificAppsMode)
                         serviceIntent.putStringArrayListExtra("selectedApps", ArrayList(it.selectedApps))
                         context.startForegroundService(serviceIntent)
-                        
-                        // Auto-launch app after system initialization
-                        val autoLaunchIntent = Intent(context, AutoLaunchService::class.java)
-                        context.startService(autoLaunchIntent)
                     }
                 }
             }

@@ -138,17 +138,29 @@ class OverlayService : Service() {
         
         reminderRunnable = object : Runnable {
             override fun run() {
+                val sessionMgr = SessionManager(this@OverlayService)
+                val currentRemaining = sessionMgr.getRemainingTime()
+                if (currentRemaining <= 0 || !sessionMgr.isSessionActive()) {
+                    sessionMgr.endSession()
+                    stopOverlayReminders()
+                    return
+                }
                 showReminderOverlay()
-                handler.postDelayed(this, reminderInterval * 1000L)
+                
+                // Schedule next reminder only if there's enough time left
+                val nextReminderTime = reminderInterval * 1000L
+                if (currentRemaining > nextReminderTime) {
+                    handler.postDelayed(this, nextReminderTime)
+                } else {
+                    // Schedule final stop at exact end time
+                    handler.postDelayed({
+                        sessionMgr.endSession()
+                        stopOverlayReminders()
+                    }, currentRemaining)
+                }
             }
         }
         handler.post(reminderRunnable!!)
-        
-        stopServiceRunnable = Runnable {
-            sessionManager.endSession()
-            stopOverlayReminders()
-        }
-        handler.postDelayed(stopServiceRunnable!!, remainingTime)
     }
     
     private fun showReminderOverlay() {
@@ -201,6 +213,12 @@ class OverlayService : Service() {
         
         monitoringRunnable = object : Runnable {
             override fun run() {
+                val sessionManager = SessionManager(this@OverlayService)
+                if (!sessionManager.isSessionActive() || sessionManager.getRemainingTime() <= 0) {
+                    sessionManager.endSession()
+                    stopOverlayReminders()
+                    return
+                }
                 checkCurrentAppAndShowReminder()
                 handler.postDelayed(this, 1000L)
             }
@@ -209,26 +227,17 @@ class OverlayService : Service() {
         
         blockCheckRunnable = object : Runnable {
             override fun run() {
+                val sessionManager = SessionManager(this@OverlayService)
+                if (!sessionManager.isSessionActive() || sessionManager.getRemainingTime() <= 0) {
+                    sessionManager.endSession()
+                    stopOverlayReminders()
+                    return
+                }
                 checkAndBlockApps()
                 handler.postDelayed(this, 200L)
             }
         }
         handler.post(blockCheckRunnable!!)
-        
-        val sessionManager = SessionManager(this@OverlayService)
-        val remainingTime = sessionManager.getRemainingTime()
-        
-        if (remainingTime <= 0) {
-            sessionManager.endSession()
-            stopOverlayReminders()
-            return
-        }
-        
-        stopServiceRunnable = Runnable {
-            sessionManager.endSession()
-            stopOverlayReminders()
-        }
-        handler.postDelayed(stopServiceRunnable!!, remainingTime)
     }
     
     private fun checkCurrentAppAndShowReminder() {

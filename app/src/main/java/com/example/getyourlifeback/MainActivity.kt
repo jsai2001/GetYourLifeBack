@@ -79,10 +79,6 @@ class MainActivity : ComponentActivity() {
         // Start default reminder service
         val defaultReminderIntent = Intent(this, DefaultReminderService::class.java)
         startService(defaultReminderIntent)
-        
-        // Start volume control service
-        val volumeControlIntent = Intent(this, VolumeControlService::class.java)
-        startService(volumeControlIntent)
     }
     
     @Composable

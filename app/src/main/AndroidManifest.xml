@@ -58,7 +58,6 @@
             
         <service android:name=".AutoLaunchService" />
         <service android:name=".DefaultReminderService" />
-        <service android:name=".VolumeControlService" />
         
         <receiver android:name=".BootReceiver"
             android:enabled="true"

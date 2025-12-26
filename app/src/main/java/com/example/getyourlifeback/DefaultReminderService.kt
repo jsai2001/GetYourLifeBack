@@ -124,7 +124,16 @@ class DefaultReminderService : Service() {
                     "Settings"
                 )
                 
-                if (!excludedApps.contains(appName) && packageName != this.packageName) {
+                // Also exclude by package name
+                val excludedPackages = setOf(
+                    "com.nextbillion.groww",
+                    "com.oplus.dialer",
+                    "com.fusionmedia.investing"
+                )
+                
+                if (!excludedApps.contains(appName) && 
+                    !excludedPackages.contains(packageName) && 
+                    packageName != this.packageName) {
                     totalUsageSeconds += (usageStat.totalTimeInForeground / 1000L).toInt()
                 }
             }

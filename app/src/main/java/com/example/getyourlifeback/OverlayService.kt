@@ -164,6 +164,12 @@ class OverlayService : Service() {
     }
     
     private fun showReminderOverlay() {
+        // Check if Need Help session is active - skip if it is
+        val sessionManager = SessionManager(this)
+        if (sessionManager.isNeedHelpActive()) {
+            return
+        }
+        
         reminderView?.let { windowManager?.removeView(it) }
         
         reminderView = LayoutInflater.from(this).inflate(
@@ -177,6 +183,9 @@ class OverlayService : Service() {
             findViewById<TextView>(R.id.timer_text).apply {
                 text = "⏱️ Take a ${cooldownTime}-second break!"
             }
+            
+            // Hide Need Help button in mindful mode overlays
+            findViewById<View>(R.id.need_help_button)?.visibility = View.GONE
         }
         
         val params = WindowManager.LayoutParams(

@@ -44,6 +44,12 @@ class AppMonitorService : Service() {
     }
     
     private fun checkCurrentApp() {
+        // Check if Need Help session is active - skip monitoring if it is
+        val sessionManager = SessionManager(this)
+        if (sessionManager.isNeedHelpActive()) {
+            return
+        }
+        
         val activityManager = getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val runningTasks = activityManager.getRunningTasks(1)
         

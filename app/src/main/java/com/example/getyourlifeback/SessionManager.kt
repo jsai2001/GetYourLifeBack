@@ -16,6 +16,9 @@ class SessionManager(context: Context) {
         private const val KEY_COOLDOWN_TIME = "cooldown_time"
         private const val KEY_IS_SPECIFIC_APPS_MODE = "is_specific_apps_mode"
         private const val KEY_SELECTED_APPS = "selected_apps"
+        private const val KEY_NEED_HELP_ACTIVE = "need_help_active"
+        private const val KEY_NEED_HELP_END_TIME = "need_help_end_time"
+        private const val KEY_NEED_HELP_OTP_SENT = "need_help_otp_sent"
     }
     
     fun startSession(
@@ -52,6 +55,72 @@ class SessionManager(context: Context) {
         }
         
         return true
+    }
+    
+    fun startNeedHelpSession() {
+        // Prevent concurrent sessions
+        if (isNeedHelpActive()) {
+            android.util.Log.d("SessionManager", "Need Help session already active")
+            return
+        }
+        
+        val currentTime = try {
+            runBlocking { TimeManager.getCurrentTime() }
+        } catch (e: Exception) {
+            // Fallback to system time if network fails
+            System.currentTimeMillis()
+        }
+        val endTime = currentTime + 30000L // 30 seconds
+        
+        prefs.edit().apply {
+            putBoolean(KEY_NEED_HELP_ACTIVE, true)
+            putLong(KEY_NEED_HELP_END_TIME, endTime)
+            putBoolean(KEY_NEED_HELP_OTP_SENT, false) // Reset OTP sent flag
+            apply()
+        }
+    }
+    
+    fun isNeedHelpActive(): Boolean {
+        if (!prefs.getBoolean(KEY_NEED_HELP_ACTIVE, false)) return false
+        
+        val endTime = prefs.getLong(KEY_NEED_HELP_END_TIME, 0)
+        val currentTime = try {
+            runBlocking { TimeManager.getCurrentTime() }
+        } catch (e: Exception) {
+            // Fallback to system time if network fails
+            System.currentTimeMillis()
+        }
+        
+        // Safety check - if session is older than 2 minutes, force cleanup
+        if (currentTime - (endTime - 30000) > 120000) {
+            android.util.Log.w("SessionManager", "Cleaning up orphaned Need Help session")
+            endNeedHelpSession()
+            return false
+        }
+        
+        if (currentTime >= endTime) {
+            endNeedHelpSession()
+            return false
+        }
+        
+        return true
+    }
+    
+    fun endNeedHelpSession() {
+        prefs.edit().apply {
+            remove(KEY_NEED_HELP_ACTIVE)
+            remove(KEY_NEED_HELP_END_TIME)
+            remove(KEY_NEED_HELP_OTP_SENT)
+            apply()
+        }
+    }
+    
+    fun isOTPSentForCurrentSession(): Boolean {
+        return prefs.getBoolean(KEY_NEED_HELP_OTP_SENT, false)
+    }
+    
+    fun markOTPSentForCurrentSession() {
+        prefs.edit().putBoolean(KEY_NEED_HELP_OTP_SENT, true).apply()
     }
     
     fun getSessionEndTime(): Long = prefs.getLong(KEY_SESSION_END_TIME, 0)

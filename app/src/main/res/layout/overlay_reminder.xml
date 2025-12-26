@@ -3,16 +3,135 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:gravity="center"
+    android:gravity="top|center_horizontal"
     android:background="#FF000000"
     android:padding="32dp">
 
-    <!-- Quote Section - Largest -->
+    <!-- Financial Tracking Section - PRIMARY FOCUS -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:background="#FF6B35"
+        android:background="#2196F3"
+        android:padding="32dp"
+        android:layout_marginBottom="32dp">
+        
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="⏰ DAILY TIME TRACKER"
+            android:textSize="24sp"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:gravity="center"
+            android:layout_marginBottom="20dp" />
+            
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="🎯 Today's Time:"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold" />
+                
+            <TextView
+                android:id="@+id/daily_budget_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="100%"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold" />
+        </LinearLayout>
+        
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="📱 Time Wasted:"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold" />
+                
+            <TextView
+                android:id="@+id/money_spent_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0%"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold" />
+        </LinearLayout>
+        
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:layout_marginBottom="12dp">
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="⏳ Time Remaining:"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold" />
+                
+            <TextView
+                android:id="@+id/potential_savings_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="0%"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold" />
+        </LinearLayout>
+        
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+            
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="✅ Time Saved:"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold" />
+                
+            <TextView
+                android:id="@+id/money_saved_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="100%"
+                android:textSize="18sp"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- Quote Section - SECONDARY -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="#FF9800"
         android:padding="24dp"
         android:layout_marginBottom="24dp">
         
@@ -20,50 +139,32 @@
             android:id="@+id/quote_text"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Your motivational quote goes here"
-            android:textSize="22sp"
+            android:text="💡 Your motivational quote goes here"
+            android:textSize="20sp"
             android:textColor="#FFFFFF"
             android:textStyle="bold"
             android:gravity="center"
             android:lineSpacingExtra="4dp" />
     </LinearLayout>
 
-    <!-- Put Phone Down Section - Medium -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="#E74C3C"
-        android:padding="20dp"
-        android:layout_marginBottom="16dp">
-        
-        <TextView
-            android:id="@+id/warning_text"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="🚫 PUT YOUR PHONE DOWN"
-            android:textSize="18sp"
-            android:textColor="#FFFFFF"
-            android:textStyle="bold"
-            android:gravity="center" />
-    </LinearLayout>
-
-    <!-- Break Time Section - Small -->
+    <!-- Need Help Button - ACTION -->
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="#9B59B6"
-        android:padding="16dp">
+        android:orientation="horizontal"
+        android:background="#9C27B0"
+        android:padding="16dp"
+        android:id="@+id/need_help_button"
+        android:clickable="true"
+        android:focusable="true">
         
         <TextView
-            android:id="@+id/timer_text"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Take a 5-second break!"
-            android:textSize="14sp"
+            android:text="🆘 Need Help"
+            android:textSize="18sp"
             android:textColor="#FFFFFF"
-            android:textStyle="normal"
+            android:textStyle="bold"
             android:gravity="center" />
     </LinearLayout>
 

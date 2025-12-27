@@ -33,7 +33,7 @@ class OTPManager(private val context: Context) {
                 val success = sendEmailViaEmailJS(otp)
                 withContext(Dispatchers.Main) {
                     if (success) {
-                        callback(true, "OTP email sent successfully via EmailJS to jeevansaikanaparthi@gmail.com")
+                        callback(true, "OTP email sent successfully via EmailJS to marella_hima@srmap.edu.in")
                     } else {
                         // Fallback: Show OTP for testing when EmailJS fails
                         callback(true, "EmailJS failed (403). Demo mode: Your OTP is $otp (valid for 15 minutes)")
@@ -69,7 +69,7 @@ class OTPManager(private val context: Context) {
                     "template_params": {
                         "passcode": "$otp",
                         "time": "${formatExpiryTime(System.currentTimeMillis() + 900000)}",
-                        "email": "jeevansaikanaparthi@gmail.com"
+                        "email": "marella_hima@srmap.edu.in"
                     }
                 }
             """.trimIndent()

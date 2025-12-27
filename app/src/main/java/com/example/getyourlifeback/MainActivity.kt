@@ -584,7 +584,7 @@ class MainActivity : ComponentActivity() {
                                 )
                                 Spacer(modifier = Modifier.height(4.dp))
                                 Text(
-                                    text = "jeevansaikanaparthi@gmail.com",
+                                    text = "marella_hima@srmap.edu.in",
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.SemiBold
                                 )
